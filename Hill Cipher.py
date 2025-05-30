@@ -39,6 +39,10 @@ def text_to_numbers(text):
 def numbers_to_text(numbers):
     return ''.join([chr(n % 26 + ord('a')) for n in numbers])
 
+def create_callback(choice, correct_answer):
+    """Helper function to create callbacks that properly capture their arguments"""
+    return lambda: show_result(choice.lower() == correct_answer.lower())
+
 def draw_matrix(matrix, x, y, surface=None, cell_size=50, highlight_cells=None):
     if surface is None:
         surface = screen
@@ -156,15 +160,39 @@ scroll_offset = 0
 max_scroll = 0
 target_scroll_offset = 0
 scroll_speed = 0.2
+main_menu_buttons = []
+
+def init_main_menu_buttons():
+    global main_menu_buttons
+    button_width = 250
+    button_height = 80
+    button_spacing = 30
+    start_y = HEIGHT//2
+    
+    # Create encryption button
+    encryption_btn = Button("Encryption", WIDTH//2 - button_width//2, start_y, 
+                          button_width, button_height, start_encryption, BLUE, WHITE)
+    
+    # Create decryption button
+    decryption_btn = Button("Decryption", WIDTH//2 - button_width//2, start_y + button_height + button_spacing,
+                          button_width, button_height, start_decryption, GREEN, WHITE)
+    
+    main_menu_buttons = [encryption_btn, decryption_btn]
+
+def show_result(is_correct):
+    global state, result_message, current_mode
+    result_message = "CORRECT!" if is_correct else "INCORRECT"
+    state = "result"
 
 def start_encryption():
-    global state, user_input, encrypted_word, encryption_steps, choices, original_word, scroll_offset
+    global state, user_input, encrypted_word, encryption_steps, choices, original_word, scroll_offset, current_mode
     user_input = ""
     encrypted_word = ""
     encryption_steps = []
     choices = []
     original_word = ""
     scroll_offset = 0
+    current_mode = "encryption"
     state = "input"
 
 def show_question():
@@ -178,10 +206,91 @@ def show_question():
         choice_buttons.append(btn)
     state = "question"
 
-def show_result(is_correct):
-    global state, result_message
-    result_message = "CORRECT!" if is_correct else "INCORRECT"
-    state = "result"
+def generate_random_word(length=4):
+    """Generate a random word of given length (default 4 letters)"""
+    return ''.join(random.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(length))
+
+def decrypt_hill(encrypted_numbers):
+    """Decrypt numbers using Hill cipher and return detailed steps"""
+    steps = []
+    result = []
+    
+    # Calculate inverse matrix
+    det = int(np.linalg.det(KEY_MATRIX))
+    det_inv = pow(det, -1, 26)  # Modular multiplicative inverse
+    adj_matrix = np.array([[KEY_MATRIX[1,1], -KEY_MATRIX[0,1]], 
+                          [-KEY_MATRIX[1,0], KEY_MATRIX[0,0]]]) % 26
+    inv_matrix = (det_inv * adj_matrix) % 26
+    
+    steps.append(("Key Matrix:", "This is our decryption key (inverse of encryption key)"))
+    steps.append(("matrix", inv_matrix))
+    
+    for i in range(0, len(encrypted_numbers), 2):
+        pair = encrypted_numbers[i:i+2]
+        vec = np.array([[pair[0]], [pair[1]]])
+        
+        steps.append((f"Convert encrypted pair to vector:", 
+                     f"[{vec[0][0]}, {vec[1][0]}]"))
+        
+        steps.append(("Matrix multiplication:", 
+             f"{inv_matrix[0][0]}×{vec[0][0]} + {inv_matrix[0][1]}×{vec[1][0]} = ?"))
+        steps.append(("Matrix multiplication:", 
+             f"{inv_matrix[1][0]}×{vec[0][0]} + {inv_matrix[1][1]}×{vec[1][0]} = ?"))
+        
+        dec = np.dot(inv_matrix, vec)
+        
+        steps.append(("Calculation results:", 
+             f"First element: {dec[0][0]}, Second element: {dec[1][0]}"))
+        
+        # Detailed modulo steps
+        steps.append(("Modulo 26 operation:", 
+                     f"First element: {dec[0][0]} mod 26 = {dec[0][0] % 26}"))
+        steps.append(("", 
+                     f"Second element: {dec[1][0]} mod 26 = {dec[1][0] % 26}"))
+        
+        dec_mod = dec % 26
+        steps.append(("Final decrypted numbers:", 
+                     f"[{dec_mod[0][0]}, {dec_mod[1][0]}]"))
+        
+        result.extend(dec_mod.flatten())
+    
+    return numbers_to_text(result), steps
+
+def start_decryption():
+    global state, encrypted_word, encryption_steps, choices, original_word, scroll_offset, choice_buttons, current_mode
+    current_mode = "decryption"
+    # Generate a random word
+    original_word = generate_random_word(4)  # 4-letter word
+    # Encrypt it to get the encrypted text
+    encrypted_word, _ = encrypt_hill(original_word)
+    # Get decryption steps
+    _, encryption_steps = decrypt_hill(text_to_numbers(encrypted_word))
+    # Generate wrong choices
+    choices = []
+    for _ in range(3):
+        wrong = generate_random_word(len(original_word))
+        while wrong == original_word or wrong in choices:
+            wrong = generate_random_word(len(original_word))
+        choices.append(wrong)
+    choices.append(original_word)
+    random.shuffle(choices)
+    # Reset scroll and set state
+    scroll_offset = 0
+    target_scroll_offset = 0
+    # Create choice buttons - USING THE SAME PATTERN AS ENCRYPTION
+    choice_buttons = []
+    for i, choice in enumerate(choices):
+        btn_color = LIGHT_BLUE if i % 2 == 0 else GRAY
+        # This is the key fix - identical to encryption button approach
+        def make_callback(c=choice):  # Capture choice as default argument
+            return lambda: show_result(c.lower() == original_word.lower())
+        btn = Button(choice.upper(), WIDTH - 400, 200 + i*70, 250, 60, 
+                    make_callback(), btn_color)  # Call the maker function
+        choice_buttons.append(btn)
+    state = "decrypt_question"
+
+# Initialize main menu buttons after all functions are defined
+init_main_menu_buttons()
 
 # Main game loop
 clock = pygame.time.Clock()
@@ -191,7 +300,7 @@ while running:
     screen.fill(WHITE)
     
     # Smooth scrolling
-    if state in ["steps", "question"]:
+    if state in ["steps", "question", "decrypt_question"]:
         scroll_offset += (target_scroll_offset - scroll_offset) * scroll_speed
     
     for event in pygame.event.get():
@@ -199,11 +308,8 @@ while running:
             running = False
         
         if state == "main_menu":
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                # Encryption button - positioned on the left
-                encryption_btn = pygame.Rect(WIDTH//4 - 100, HEIGHT//2, 200, 60)
-                if encryption_btn.collidepoint(event.pos):
-                    start_encryption()
+            for btn in main_menu_buttons:
+                btn.handle_event(event)
         
         elif state == "input":
             if event.type == pygame.KEYDOWN:
@@ -221,7 +327,7 @@ while running:
                 elif event.unicode.isalpha():
                     user_input += event.unicode
         
-        if state in ["steps", "question"] and event.type == pygame.MOUSEWHEEL:
+        if state in ["steps", "question", "decrypt_question"] and event.type == pygame.MOUSEWHEEL:
             target_scroll_offset -= event.y * 10
             target_scroll_offset = max(0, min(target_scroll_offset, max_scroll))
         
@@ -230,9 +336,12 @@ while running:
         
         if state == "result" and event.type == pygame.KEYDOWN:
             if event.key == pygame.K_r:
-                start_encryption()
+                if current_mode == "encryption":
+                    start_encryption()
+                else:
+                    start_decryption()
             elif event.key == pygame.K_q:
-                state = "main_menu"  # Return to main menu instead of quitting
+                state = "main_menu"
     
     # Draw states
     if state == "main_menu":
@@ -242,16 +351,9 @@ while running:
         screen.blit(title, (WIDTH//2 - title.get_width()//2, HEIGHT//4))
         screen.blit(subtitle, (WIDTH//2 - subtitle.get_width()//2, HEIGHT//4 + 60))
         
-        # Draw encryption button
-        encryption_btn = pygame.Rect(WIDTH//4 - 100, HEIGHT//2, 200, 60)
-        pygame.draw.rect(screen, BLUE, encryption_btn, border_radius=10)
-        pygame.draw.rect(screen, BLACK, encryption_btn, 2, border_radius=10)
-        btn_text = FONT.render("Encryption", True, WHITE)
-        screen.blit(btn_text, (encryption_btn.centerx - btn_text.get_width()//2, 
-                              encryption_btn.centery - btn_text.get_height()//2))
-        
-        # Space reserved for decryption button on the right
-        # Will be added later
+        # Draw main menu buttons
+        for btn in main_menu_buttons:
+            btn.draw(screen)
     
     elif state == "input":
         title = FONT.render("Enter text to encrypt (letters only, min 2):", True, BLACK)
@@ -264,15 +366,15 @@ while running:
             error = FONT.render("Please enter at least 2 letters", True, RED)
             screen.blit(error, (WIDTH//2 - error.get_width()//2, 200))
     
-    elif state in ["steps", "question"]:
+    elif state in ["steps", "question", "decrypt_question"]:
         # Draw dividing line
         pygame.draw.line(screen, BLACK, (WIDTH - 480, 0), (WIDTH - 480, HEIGHT), 2)
         
-        # Fixed header
-        steps_title = FONT.render("Encryption Steps:", True, PURPLE)
+        # Left side: Steps
+        steps_title = FONT.render("Decryption Steps:" if state == "decrypt_question" else "Encryption Steps:", True, PURPLE)
         screen.blit(steps_title, (50, 30))
-
-        # Scrollable content area
+        
+        # Scrollable content area for left side
         content_area = pygame.Rect(50, 70, WIDTH-530, HEIGHT-100)
         content_surface = pygame.Surface((content_area.width, content_area.height))
         content_surface.fill(WHITE)
@@ -287,6 +389,7 @@ while running:
             else:
                 total_height += 55 if step[0] else 30
         
+        # Update max scroll value
         max_scroll = max(0, total_height - content_area.height)
         target_scroll_offset = max(0, min(target_scroll_offset, max_scroll))
         
@@ -297,33 +400,59 @@ while running:
             if isinstance(step[0], str) and step[0].endswith(":"):
                 header = STEP_FONT.render(step[0], True, BLUE)
                 detail = SMALL_FONT.render(step[1], True, BLACK)
-                content_surface.blit(header, (0, y_pos))
-                content_surface.blit(detail, (20, y_pos + 25))
+                if y_pos + 50 > 0 and y_pos < content_area.height:  # Only render if visible
+                    content_surface.blit(header, (0, y_pos))
+                    content_surface.blit(detail, (20, y_pos + 25))
                 y_pos += 50
             elif step[0] == "matrix":
-                draw_matrix(step[1], 0, y_pos, content_surface)
-                hint = SMALL_FONT.render("Remember: A=0, B=1, C=2, ..., Z=25", True, BLACK)
-                content_surface.blit(hint, (110, y_pos + 30))
+                if y_pos + 120 > 0 and y_pos < content_area.height:  # Only render if visible
+                    draw_matrix(step[1], 0, y_pos, content_surface)
+                    hint = SMALL_FONT.render("Remember: A=0, B=1, C=2, ..., Z=25", True, BLACK)
+                    content_surface.blit(hint, (110, y_pos + 30))
                 y_pos += 120
             else:
                 if step[0]:
                     header = STEP_FONT.render(step[0], True, BLACK)
-                    content_surface.blit(header, (0, y_pos))
+                    if y_pos + 25 > 0 and y_pos < content_area.height:  # Only render if visible
+                        content_surface.blit(header, (0, y_pos))
                     y_pos += 25
                 detail = SMALL_FONT.render(step[1], True, BLACK)
-                content_surface.blit(detail, (20, y_pos))
+                if y_pos + 30 > 0 and y_pos < content_area.height:  # Only render if visible
+                    content_surface.blit(detail, (20, y_pos))
                 y_pos += 30
         
         # Draw content surface to screen
         screen.blit(content_surface, (content_area.x, content_area.y))
         
-        # Right side for question state
-        if state == "question":
+        # Draw scroll indicators if content is scrollable
+        if max_scroll > 0:
+            if scroll_offset > 0:  # Show up arrow
+                pygame.draw.polygon(screen, BLACK, [
+                    (content_area.x + content_area.width - 20, content_area.y + 10),
+                    (content_area.x + content_area.width - 10, content_area.y + 20),
+                    (content_area.x + content_area.width - 30, content_area.y + 20)
+                ])
+            if scroll_offset < max_scroll:  # Show down arrow
+                pygame.draw.polygon(screen, BLACK, [
+                    (content_area.x + content_area.width - 20, content_area.y + content_area.height - 10),
+                    (content_area.x + content_area.width - 10, content_area.y + content_area.height - 20),
+                    (content_area.x + content_area.width - 30, content_area.y + content_area.height - 20)
+                ])
+        
+        # Right side
+        if state == "decrypt_question":
+            question = FONT.render("What was the original text?", True, BLACK)
+            screen.blit(question, (WIDTH - 450, 100))
+            
+            encrypted_text = FONT.render(f"Encrypted text: {encrypted_word.upper()}", True, BLUE)
+            screen.blit(encrypted_text, (WIDTH - 450, 150))
+        else:
             question = FONT.render("Select the encrypted result:", True, BLACK)
             screen.blit(question, (WIDTH - 450, 150))
-            
-            for btn in choice_buttons:
-                btn.draw(screen)
+        
+        # Draw choice buttons
+        for btn in choice_buttons:
+            btn.draw(screen)
     
     elif state == "result":
         color = GREEN if result_message == "CORRECT!" else RED
@@ -343,3 +472,5 @@ while running:
 
 pygame.quit()
 sys.exit()
+
+
