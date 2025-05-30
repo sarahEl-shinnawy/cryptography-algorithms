@@ -87,16 +87,14 @@ def encrypt_hill(text):
         steps.append(("Matrix multiplication:", 
              f"{KEY_MATRIX[0][0]}×{vec[0][0]} + {KEY_MATRIX[0][1]}×{vec[1][0]} = ?"))
         steps.append(("Matrix multiplication:", 
-             f"{KEY_MATRIX[0][0]}×{vec[0][0]} + {KEY_MATRIX[0][1]}×{vec[1][0]} = ?"))
+             f"{KEY_MATRIX[1][0]}×{vec[0][0]} + {KEY_MATRIX[1][1]}×{vec[1][0]} = ?"))
         
         # Actual calculation
         enc = np.dot(KEY_MATRIX, vec)
         
         # Step 3: Show calculation results
-        steps.append(("Matrix multiplication:", 
-             f"{KEY_MATRIX[0][0]}×{vec[0][0]} + {KEY_MATRIX[0][1]}×{vec[1][0]} = ?"))
-        steps.append(("Matrix multiplication:", 
-             f"{KEY_MATRIX[0][0]}×{vec[0][0]} + {KEY_MATRIX[0][1]}×{vec[1][0]} = ?"))
+        steps.append(("Calculation results:", 
+             f"First element: {enc[0][0]}, Second element: {enc[1][0]}"))
         
         # Step 4: Mod 26 operation
         enc_mod = enc % 26
@@ -163,6 +161,7 @@ choice_buttons = []
 result_message = ""
 original_word = ""
 scroll_offset = 0
+max_scroll = 0
 
 def start_game():
     global state, user_input, encrypted_word, encryption_steps, choices, original_word, scroll_offset
@@ -220,8 +219,8 @@ while running:
         
         # Handle scrolling
         if state in ["steps", "question"] and event.type == pygame.MOUSEWHEEL:
-            scroll_offset += event.y * 20
-            scroll_offset = max(0, min(scroll_offset, len(encryption_steps)*35 - 400))
+            scroll_offset -= event.y * 10
+            scroll_offset = max(0, min(scroll_offset, max_scroll))
         
         # Handle buttons
         if state == "menu":
@@ -266,32 +265,59 @@ while running:
         # Left side: Steps
         steps_title = FONT.render("Encryption Steps:", True, PURPLE)
         screen.blit(steps_title, (50, 30))
+        y_pos = 70 - scroll_offset
+        
+
+        # Calculate total height needed for all steps and max scroll
+        total_height = 0
+        for step in encryption_steps:
+            if isinstance(step[0], str) and step[0].endswith(":"):
+                total_height += 50
+            elif step[0] == "matrix":
+                total_height += 120
+            else:
+                total_height += 55 if step[0] else 30
+        
+        max_scroll = max(0, total_height - 400)  # 400 is roughly the visible area height
+        scroll_offset = max(0, min(scroll_offset, max_scroll))
         
         # Show all steps with scrolling
         y_pos = 70
-        for i, step in enumerate(encryption_steps):
-            if isinstance(step[0], str) and step[0].endswith(":"):
-                # Header step
-                header = STEP_FONT.render(step[0], True, BLUE)
-                detail = SMALL_FONT.render(step[1], True, BLACK)
-                screen.blit(header, (50, y_pos - scroll_offset))
-                screen.blit(detail, (70, y_pos + 25 - scroll_offset))
-                y_pos += 50
-            elif step[0] == "matrix":
-                # Matrix display
-                draw_matrix(step[1], 50, y_pos - scroll_offset)
-                hint = SMALL_FONT.render("Remember: A=0, B=1, C=2, ..., Z=25", True, BLACK)
-                screen.blit(hint, (160, y_pos + 30 - scroll_offset))
-                y_pos += 120
+        for step in encryption_steps:
+            visible_y = y_pos - scroll_offset + 70
+            
+            # Only render if this step is visible on screen
+            if visible_y + 120 > 0 and visible_y < HEIGHT:  # 120 is max step height
+                if isinstance(step[0], str) and step[0].endswith(":"):
+                    # Header step
+                    header = STEP_FONT.render(step[0], True, BLUE)
+                    detail = SMALL_FONT.render(step[1], True, BLACK)
+                    screen.blit(header, (50, visible_y))
+                    screen.blit(detail, (70, visible_y + 25))
+                    y_pos += 50
+                elif step[0] == "matrix":
+                    # Matrix display
+                    draw_matrix(step[1], 50, visible_y)
+                    hint = SMALL_FONT.render("Remember: A=0, B=1, C=2, ..., Z=25", True, BLACK)
+                    screen.blit(hint, (160, visible_y + 30))
+                    y_pos += 120
+                else:
+                    # Regular step
+                    if step[0]:  # If there's a header
+                        header = STEP_FONT.render(step[0], True, BLACK)
+                        screen.blit(header, (50, visible_y))
+                        y_pos += 25
+                    detail = SMALL_FONT.render(step[1], True, BLACK)
+                    screen.blit(detail, (70, visible_y))
+                    y_pos += 30
             else:
-                # Regular step
-                if step[0]:  # If there's a header
-                    header = STEP_FONT.render(step[0], True, BLACK)
-                    screen.blit(header, (50, y_pos - scroll_offset))
-                    y_pos += 25
-                detail = SMALL_FONT.render(step[1], True, BLACK)
-                screen.blit(detail, (70, y_pos - scroll_offset))
-                y_pos += 30
+                # Still need to account for the height even if not visible
+                if isinstance(step[0], str) and step[0].endswith(":"):
+                    y_pos += 50
+                elif step[0] == "matrix":
+                    y_pos += 120
+                else:
+                    y_pos += 55 if step[0] else 30
         
         # Right side: Choices (only in question state)
         if state == "question":
@@ -322,3 +348,4 @@ while running:
 
 pygame.quit()
 sys.exit()
+
