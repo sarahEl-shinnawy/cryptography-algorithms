@@ -2,27 +2,41 @@ import pygame
 import sys
 import random
 import numpy as np
+import cv2
 
 # Initialize pygame
 pygame.init()
 
 # Screen setup
-WIDTH, HEIGHT = 1000, 700
+WIDTH, HEIGHT = 1000, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Hill Cipher Challenge")
 
+# Add image background setup
+bg_image_path = r"C:\Users\sarah\Desktop\CryptographyProjectFINAL\cryptography-algorithms\3139256.jpg"
+bg_image = pygame.image.load(bg_image_path)
+bg_image = pygame.transform.scale(bg_image, (WIDTH, HEIGHT))
+
 # Fonts
-FONT = pygame.font.Font(None, 36)
-BIG_FONT = pygame.font.Font(None, 48)
-SMALL_FONT = pygame.font.Font(None, 24)
-STEP_FONT = pygame.font.Font(None, 28)
-MATRIX_FONT = pygame.font.Font(None, 32)
+try:
+    FONT = pygame.font.SysFont('Consolas', 26)
+    BIG_FONT = pygame.font.SysFont('Consolas', 36)
+    SMALL_FONT = pygame.font.SysFont('Consolas', 16)
+    STEP_FONT = pygame.font.SysFont('Consolas', 18)
+    MATRIX_FONT = pygame.font.SysFont('Consolas', 20)
+except:
+    # Fallback to default font if Consolas is not available
+    FONT = pygame.font.Font(None, 26)
+    BIG_FONT = pygame.font.Font(None, 36)
+    SMALL_FONT = pygame.font.Font(None, 16)
+    STEP_FONT = pygame.font.Font(None, 18)
+    MATRIX_FONT = pygame.font.Font(None, 20)
 
 # Colors
 WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
+BLACK = (255, 255, 255)
 GRAY = (200, 200, 200)
-BLUE = (0, 100, 255)
+BLUE = (173, 216, 230)
 GREEN = (0, 200, 0)
 RED = (200, 0, 0)
 PURPLE = (128, 0, 128)
@@ -33,15 +47,14 @@ BUTTON_ACTIVE = (150, 150, 150)
 # Hill cipher key matrix
 KEY_MATRIX = np.array([[3, 3], [2, 5]])
 
+def get_video_frame():
+    return None
+
 def text_to_numbers(text):
     return [ord(c.lower()) - ord('a') for c in text if c.isalpha()]
 
 def numbers_to_text(numbers):
     return ''.join([chr(n % 26 + ord('a')) for n in numbers])
-
-def create_callback(choice, correct_answer):
-    """Helper function to create callbacks that properly capture their arguments"""
-    return lambda: show_result(choice.lower() == correct_answer.lower())
 
 def draw_matrix(matrix, x, y, surface=None, cell_size=50, highlight_cells=None):
     if surface is None:
@@ -58,8 +71,8 @@ def draw_matrix(matrix, x, y, surface=None, cell_size=50, highlight_cells=None):
             if (i, j) in highlight_cells:
                 pygame.draw.rect(surface, LIGHT_BLUE, rect)
             
-            pygame.draw.rect(surface, BLACK, rect, 1)
-            num = MATRIX_FONT.render(str(matrix[i, j]), True, BLACK)
+            pygame.draw.rect(surface, WHITE, rect, 1)
+            num = MATRIX_FONT.render(str(matrix[i, j]), True, WHITE)
             surface.blit(num, (x + j * cell_size + (cell_size - num.get_width()) // 2, 
                              y + i * cell_size + (cell_size - num.get_height()) // 2))
 
@@ -104,111 +117,6 @@ def encrypt_hill(text):
     
     encrypted = numbers_to_text(result)
     return encrypted, steps
-
-def generate_choices(encrypted_word):
-    encrypted = encrypted_word.lower()
-    choices = []
-    
-    for i in range(3):
-        pos = random.randint(0, len(encrypted)-1)
-        delta = random.choice([1, -1, 2, -2])
-        new_char = chr((ord(encrypted[pos]) - ord('a') + delta) % 26 + ord('a'))
-        wrong = encrypted[:pos] + new_char + encrypted[pos+1:]
-        choices.append(wrong)
-    
-    choices.append(encrypted)
-    random.shuffle(choices)
-    return choices
-
-class Button:
-    def __init__(self, text, x, y, w, h, callback, color=GRAY, text_color=BLACK):
-        self.text = text
-        self.rect = pygame.Rect(x, y, w, h)
-        self.callback = callback
-        self.is_hovered = False
-        self.is_active = False
-        self.color = color
-        self.text_color = text_color
-
-    def draw(self, screen):
-        color = BUTTON_ACTIVE if self.is_active else BUTTON_HOVER if self.is_hovered else self.color
-        pygame.draw.rect(screen, color, self.rect, border_radius=5)
-        pygame.draw.rect(screen, BLACK, self.rect, 2, border_radius=5)
-        txt = FONT.render(self.text, True, self.text_color)
-        screen.blit(txt, (self.rect.x + (self.rect.w - txt.get_width()) // 2, 
-                         self.rect.y + (self.rect.h - txt.get_height()) // 2))
-
-    def handle_event(self, event):
-        self.is_hovered = self.rect.collidepoint(pygame.mouse.get_pos())
-        if event.type == pygame.MOUSEBUTTONDOWN and self.is_hovered:
-            self.is_active = True
-        elif event.type == pygame.MOUSEBUTTONUP:
-            if self.is_active and self.is_hovered:
-                self.callback()
-            self.is_active = False
-
-# Game states
-state = "main_menu"
-user_input = ""
-encrypted_word = ""
-encryption_steps = []
-choices = []
-choice_buttons = []
-result_message = ""
-original_word = ""
-scroll_offset = 0
-max_scroll = 0
-target_scroll_offset = 0
-scroll_speed = 0.2
-main_menu_buttons = []
-
-def init_main_menu_buttons():
-    global main_menu_buttons
-    button_width = 250
-    button_height = 80
-    button_spacing = 30
-    start_y = HEIGHT//2
-    
-    # Create encryption button
-    encryption_btn = Button("Encryption", WIDTH//2 - button_width//2, start_y, 
-                          button_width, button_height, start_encryption, BLUE, WHITE)
-    
-    # Create decryption button
-    decryption_btn = Button("Decryption", WIDTH//2 - button_width//2, start_y + button_height + button_spacing,
-                          button_width, button_height, start_decryption, GREEN, WHITE)
-    
-    main_menu_buttons = [encryption_btn, decryption_btn]
-
-def show_result(is_correct):
-    global state, result_message, current_mode
-    result_message = "CORRECT!" if is_correct else "INCORRECT"
-    state = "result"
-
-def start_encryption():
-    global state, user_input, encrypted_word, encryption_steps, choices, original_word, scroll_offset, current_mode
-    user_input = ""
-    encrypted_word = ""
-    encryption_steps = []
-    choices = []
-    original_word = ""
-    scroll_offset = 0
-    current_mode = "encryption"
-    state = "input"
-
-def show_question():
-    global state, choice_buttons
-    choice_buttons = []
-    for i, choice in enumerate(choices):
-        def make_callback(c=choice):
-            return lambda: show_result(c == encrypted_word)
-        btn_color = LIGHT_BLUE if i % 2 == 0 else GRAY
-        btn = Button(choice.upper(), WIDTH - 400, 200 + i*70, 250, 60, make_callback(), btn_color)
-        choice_buttons.append(btn)
-    state = "question"
-
-def generate_random_word(length=4):
-    """Generate a random word of given length (default 4 letters)"""
-    return ''.join(random.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(length))
 
 def decrypt_hill(encrypted_numbers):
     """Decrypt numbers using Hill cipher and return detailed steps"""
@@ -256,15 +164,112 @@ def decrypt_hill(encrypted_numbers):
     
     return numbers_to_text(result), steps
 
+def generate_choices(encrypted_word):
+    encrypted = encrypted_word.lower()
+    choices = []
+    
+    for i in range(3):
+        pos = random.randint(0, len(encrypted)-1)
+        delta = random.choice([1, -1, 2, -2])
+        new_char = chr((ord(encrypted[pos]) - ord('a') + delta) % 26 + ord('a'))
+        wrong = encrypted[:pos] + new_char + encrypted[pos+1:]
+        choices.append(wrong)
+    
+    choices.append(encrypted)
+    random.shuffle(choices)
+    return choices
+
+class Button:
+    def __init__(self, text, x, y, w, h, callback, color=GRAY, text_color=WHITE, border_color=WHITE):
+        self.text = text
+        self.rect = pygame.Rect(x, y, w, h)
+        self.callback = callback
+        self.is_hovered = False
+        self.is_active = False
+        self.color = color
+        self.text_color = text_color
+        self.border_color = border_color
+
+    def draw(self, screen):
+        color = BUTTON_ACTIVE if self.is_active else BUTTON_HOVER if self.is_hovered else self.color
+        pygame.draw.rect(screen, color, self.rect, border_radius=5)
+        pygame.draw.rect(screen, self.border_color, self.rect, 2, border_radius=5)
+        txt = FONT.render(self.text, True, self.text_color)
+        screen.blit(txt, (self.rect.x + (self.rect.w - txt.get_width()) // 2, 
+                         self.rect.y + (self.rect.h - txt.get_height()) // 2))
+
+    def handle_event(self, event):
+        self.is_hovered = self.rect.collidepoint(pygame.mouse.get_pos())
+        if event.type == pygame.MOUSEBUTTONDOWN and self.is_hovered:
+            self.is_active = True
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if self.is_active and self.is_hovered:
+                self.callback()
+            self.is_active = False
+
+# Game states
+state = "main_menu"
+user_input = ""
+encrypted_word = ""
+encryption_steps = []
+decryption_steps = []
+choices = []
+choice_buttons = []
+result_message = ""
+original_word = ""
+scroll_offset = 0
+max_scroll = 0
+target_scroll_offset = 0
+scroll_speed = 0.2
+main_menu_buttons = []
+current_mode = ""
+
+def init_main_menu_buttons():
+    global main_menu_buttons
+    button_width = 200  # smaller
+    button_height = 60  # smaller
+    button_spacing = 22 # slightly smaller spacing
+    start_y = HEIGHT//2 + 30 # shift down
+    
+    # Create encryption button (color: #1a759f)
+    encryption_btn = Button("Encryption", WIDTH//2 - button_width//2, start_y, 
+                          button_width, button_height, start_encryption, (26, 117, 159), WHITE, (26, 117, 159))
+    
+    # Create decryption button (color: #52b69a)
+    decryption_btn = Button("Decryption", WIDTH//2 - button_width//2, start_y + button_height + button_spacing,
+                          button_width, button_height, start_decryption, (82, 182, 154), WHITE, (82, 182, 154))
+    
+    # Create quit button (color: #b5179e)
+    quit_btn = Button("Quit", WIDTH//2 - button_width//2, start_y + 2*(button_height + button_spacing),
+                     button_width, button_height, quit_game, (181, 23, 158), WHITE, (181, 23, 158))
+    
+    main_menu_buttons = [encryption_btn, decryption_btn, quit_btn]
+
+def show_result(is_correct):
+    global state, result_message
+    result_message = "CORRECT!" if is_correct else "INCORRECT"
+    state = "result"
+
+def start_encryption():
+    global state, user_input, encrypted_word, encryption_steps, choices, original_word, scroll_offset, current_mode
+    user_input = ""
+    encrypted_word = ""
+    encryption_steps = []
+    choices = []
+    original_word = ""
+    scroll_offset = 0
+    current_mode = "encryption"
+    state = "input"
+
 def start_decryption():
-    global state, encrypted_word, encryption_steps, choices, original_word, scroll_offset, choice_buttons, current_mode
+    global state, encrypted_word, encryption_steps, decryption_steps, choices, original_word, scroll_offset, choice_buttons, current_mode
     current_mode = "decryption"
     # Generate a random word
     original_word = generate_random_word(4)  # 4-letter word
     # Encrypt it to get the encrypted text
     encrypted_word, _ = encrypt_hill(original_word)
     # Get decryption steps
-    _, encryption_steps = decrypt_hill(text_to_numbers(encrypted_word))
+    _, decryption_steps = decrypt_hill(text_to_numbers(encrypted_word))
     # Generate wrong choices
     choices = []
     for _ in range(3):
@@ -277,17 +282,58 @@ def start_decryption():
     # Reset scroll and set state
     scroll_offset = 0
     target_scroll_offset = 0
-    # Create choice buttons - USING THE SAME PATTERN AS ENCRYPTION
+    # Create choice buttons
     choice_buttons = []
     for i, choice in enumerate(choices):
-        btn_color = LIGHT_BLUE if i % 2 == 0 else GRAY
-        # This is the key fix - identical to encryption button approach
+        # Alternate button colors
+        if i % 2 == 0:
+            btn_color = (44, 125, 160)  # #2c7da0
+            border_color = (20, 70, 90)  # darker shade
+        else:
+            btn_color = (1, 79, 134)    # #014f86
+            border_color = (0, 40, 70)  # darker shade
         def make_callback(c=choice):  # Capture choice as default argument
             return lambda: show_result(c.lower() == original_word.lower())
-        btn = Button(choice.upper(), WIDTH - 400, 200 + i*70, 250, 60, 
-                    make_callback(), btn_color)  # Call the maker function
+        btn = Button(choice.upper(), WIDTH - 400, 200 + i*70, 250, 60, make_callback(), btn_color, WHITE, border_color)
         choice_buttons.append(btn)
     state = "decrypt_question"
+
+def show_question():
+    global state, choice_buttons
+    choice_buttons = []
+    for i, choice in enumerate(choices):
+        # Alternate button colors
+        if i % 2 == 0:
+            btn_color = (44, 125, 160)  # #2c7da0
+            border_color = (20, 70, 90)  # darker shade
+        else:
+            btn_color = (1, 79, 134)    # #014f86
+            border_color = (0, 40, 70)  # darker shade
+        def make_callback(c=choice):
+            return lambda: show_result(c == encrypted_word)
+        btn = Button(choice.upper(), WIDTH - 400, 200 + i*70, 250, 60, make_callback(), btn_color, WHITE, border_color)
+        choice_buttons.append(btn)
+    state = "question"
+
+def generate_random_word(length=4):
+    """Generate a random word of given length (default 4 letters)"""
+    return ''.join(random.choice('abcdefghijklmnopqrstuvwxyz') for _ in range(length))
+
+def quit_game():
+    pygame.quit()
+    sys.exit()
+
+def create_vertical_gradient(width, height, color=(0, 0, 0), alpha_start=180, alpha_end=0):
+    """Create a vertical gradient surface from color with alpha_start to alpha_end."""
+    gradient = pygame.Surface((width, height), pygame.SRCALPHA)
+    for y in range(height):
+        alpha = int(alpha_start + (alpha_end - alpha_start) * (y / height))
+        pygame.draw.line(gradient, (*color, alpha), (0, y), (width, y))
+    return gradient
+
+# Create a black-to-transparent vertical gradient overlay
+# Make the gradient darker by increasing alpha_start
+gradient_overlay = create_vertical_gradient(WIDTH, HEIGHT, color=(0, 0, 0), alpha_start=230, alpha_end=0)
 
 # Initialize main menu buttons after all functions are defined
 init_main_menu_buttons()
@@ -296,13 +342,19 @@ init_main_menu_buttons()
 clock = pygame.time.Clock()
 running = True
 
+# Use a brighter purple for the title
+BRIGHT_PURPLE = (204, 51, 255)
+
 while running:
-    screen.fill(WHITE)
-    
+    # Draw the image background at the start of each frame
+    screen.blit(bg_image, (0, 0))
+    # Draw the gradient overlay
+    screen.blit(gradient_overlay, (0, 0))
+
     # Smooth scrolling
     if state in ["steps", "question", "decrypt_question"]:
         scroll_offset += (target_scroll_offset - scroll_offset) * scroll_speed
-    
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -342,12 +394,12 @@ while running:
                     start_decryption()
             elif event.key == pygame.K_q:
                 state = "main_menu"
-    
+
     # Draw states
     if state == "main_menu":
         # Draw title
-        title = BIG_FONT.render("Hill Cipher", True, PURPLE)
-        subtitle = FONT.render("Encryption and Decryption Challenge", True, BLACK)
+        title = BIG_FONT.render("Hill Cipher", True, BRIGHT_PURPLE)
+        subtitle = FONT.render("Encryption and Decryption Challenge", True, WHITE)
         screen.blit(title, (WIDTH//2 - title.get_width()//2, HEIGHT//4))
         screen.blit(subtitle, (WIDTH//2 - subtitle.get_width()//2, HEIGHT//4 + 60))
         
@@ -356,19 +408,30 @@ while running:
             btn.draw(screen)
     
     elif state == "input":
-        title = FONT.render("Enter text to encrypt (letters only, min 2):", True, BLACK)
+        title = FONT.render("Enter text to encrypt (letters only, min 2):", True, WHITE)
+        # Draw a text box
+        box_width = 400
+        box_height = 60
+        box_x = WIDTH//2 - box_width//2
+        box_y = 150
+        pygame.draw.rect(screen, (30, 30, 30), (box_x, box_y, box_width, box_height), border_radius=8)  # dark background
+        pygame.draw.rect(screen, BLUE, (box_x, box_y, box_width, box_height), 3, border_radius=8)  # blue border
         input_text = FONT.render(user_input.upper(), True, BLUE)
-        
         screen.blit(title, (WIDTH//2 - title.get_width()//2, 100))
-        screen.blit(input_text, (WIDTH//2 - input_text.get_width()//2, 150))
+        # Show placeholder if empty
+        if not user_input:
+            placeholder = SMALL_FONT.render("Type here...", True, (120, 120, 120))
+            screen.blit(placeholder, (box_x + 15, box_y + (box_height - placeholder.get_height())//2))
+        else:
+            screen.blit(input_text, (box_x + 15, box_y + (box_height - input_text.get_height())//2))
         
         if len(''.join([c for c in user_input if c.isalpha()])) < 2 and user_input:
             error = FONT.render("Please enter at least 2 letters", True, RED)
-            screen.blit(error, (WIDTH//2 - error.get_width()//2, 200))
+            screen.blit(error, (WIDTH//2 - error.get_width()//2, box_y + box_height + 20))
     
     elif state in ["steps", "question", "decrypt_question"]:
         # Draw dividing line
-        pygame.draw.line(screen, BLACK, (WIDTH - 480, 0), (WIDTH - 480, HEIGHT), 2)
+        pygame.draw.line(screen, WHITE, (WIDTH - 480, 0), (WIDTH - 480, HEIGHT), 2)
         
         # Left side: Steps
         steps_title = FONT.render("Decryption Steps:" if state == "decrypt_question" else "Encryption Steps:", True, PURPLE)
@@ -376,12 +439,16 @@ while running:
         
         # Scrollable content area for left side
         content_area = pygame.Rect(50, 70, WIDTH-530, HEIGHT-100)
-        content_surface = pygame.Surface((content_area.width, content_area.height))
-        content_surface.fill(WHITE)
+        # Create a transparent surface for content
+        content_surface = pygame.Surface((content_area.width, content_area.height), pygame.SRCALPHA)
+        # Do NOT fill the surface, keep it transparent
+        
+        # Select correct steps to show
+        steps_to_show = decryption_steps if state == "decrypt_question" else encryption_steps
         
         # Calculate total content height for scrolling
         total_height = 0
-        for step in encryption_steps:
+        for step in steps_to_show:
             if isinstance(step[0], str) and step[0].endswith(":"):
                 total_height += 50
             elif step[0] == "matrix":
@@ -396,10 +463,10 @@ while running:
         # Draw steps on content surface
         y_pos = -scroll_offset
         
-        for step in encryption_steps:
+        for step in steps_to_show:
             if isinstance(step[0], str) and step[0].endswith(":"):
                 header = STEP_FONT.render(step[0], True, BLUE)
-                detail = SMALL_FONT.render(step[1], True, BLACK)
+                detail = SMALL_FONT.render(step[1], True, WHITE)
                 if y_pos + 50 > 0 and y_pos < content_area.height:  # Only render if visible
                     content_surface.blit(header, (0, y_pos))
                     content_surface.blit(detail, (20, y_pos + 25))
@@ -407,16 +474,16 @@ while running:
             elif step[0] == "matrix":
                 if y_pos + 120 > 0 and y_pos < content_area.height:  # Only render if visible
                     draw_matrix(step[1], 0, y_pos, content_surface)
-                    hint = SMALL_FONT.render("Remember: A=0, B=1, C=2, ..., Z=25", True, BLACK)
+                    hint = SMALL_FONT.render("Remember: A=0, B=1, C=2, ..., Z=25", True, WHITE)
                     content_surface.blit(hint, (110, y_pos + 30))
                 y_pos += 120
             else:
                 if step[0]:
-                    header = STEP_FONT.render(step[0], True, BLACK)
+                    header = STEP_FONT.render(step[0], True, WHITE)
                     if y_pos + 25 > 0 and y_pos < content_area.height:  # Only render if visible
                         content_surface.blit(header, (0, y_pos))
                     y_pos += 25
-                detail = SMALL_FONT.render(step[1], True, BLACK)
+                detail = SMALL_FONT.render(step[1], True, WHITE)
                 if y_pos + 30 > 0 and y_pos < content_area.height:  # Only render if visible
                     content_surface.blit(detail, (20, y_pos))
                 y_pos += 30
@@ -427,13 +494,13 @@ while running:
         # Draw scroll indicators if content is scrollable
         if max_scroll > 0:
             if scroll_offset > 0:  # Show up arrow
-                pygame.draw.polygon(screen, BLACK, [
+                pygame.draw.polygon(screen, WHITE, [
                     (content_area.x + content_area.width - 20, content_area.y + 10),
                     (content_area.x + content_area.width - 10, content_area.y + 20),
                     (content_area.x + content_area.width - 30, content_area.y + 20)
                 ])
             if scroll_offset < max_scroll:  # Show down arrow
-                pygame.draw.polygon(screen, BLACK, [
+                pygame.draw.polygon(screen, WHITE, [
                     (content_area.x + content_area.width - 20, content_area.y + content_area.height - 10),
                     (content_area.x + content_area.width - 10, content_area.y + content_area.height - 20),
                     (content_area.x + content_area.width - 30, content_area.y + content_area.height - 20)
@@ -441,13 +508,13 @@ while running:
         
         # Right side
         if state == "decrypt_question":
-            question = FONT.render("What was the original text?", True, BLACK)
+            question = FONT.render("What was the original text?", True, WHITE)
             screen.blit(question, (WIDTH - 450, 100))
             
             encrypted_text = FONT.render(f"Encrypted text: {encrypted_word.upper()}", True, BLUE)
             screen.blit(encrypted_text, (WIDTH - 450, 150))
         else:
-            question = FONT.render("Select the encrypted result:", True, BLACK)
+            question = FONT.render("Select the encrypted result:", True, WHITE)
             screen.blit(question, (WIDTH - 450, 150))
         
         # Draw choice buttons
@@ -459,18 +526,17 @@ while running:
         result_text = BIG_FONT.render(result_message, True, color)
         screen.blit(result_text, (WIDTH//2 - result_text.get_width()//2, 100))
         
-        orig_text = FONT.render(f"Original text: {original_word.upper()}", True, BLACK)
+        orig_text = FONT.render(f"Original text: {original_word.upper()}", True, WHITE)
         enc_text = FONT.render(f"Encrypted result: {encrypted_word.upper()}", True, BLUE)
         screen.blit(orig_text, (WIDTH//2 - orig_text.get_width()//2, 180))
         screen.blit(enc_text, (WIDTH//2 - enc_text.get_width()//2, 230))
         
-        instr = FONT.render("Press R to restart or Q to quit", True, BLACK)
+        instr = FONT.render("Press R to restart or Q to quit", True, WHITE)
         screen.blit(instr, (WIDTH//2 - instr.get_width()//2, 500))
     
     pygame.display.flip()
-    clock.tick(60)
+    clock.tick(30)  # 30 FPS is good for video playback
 
+# Cleanup
 pygame.quit()
 sys.exit()
-
-
