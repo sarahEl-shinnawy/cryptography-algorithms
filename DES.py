@@ -153,6 +153,7 @@ input_box_rect = pygame.Rect(WIDTH//2 - 200, 250, 400, 50)
 gradient_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
 for y in range(HEIGHT):
     alpha = int(220 * (1 - y / HEIGHT))
+    color = (15, 20, 40)
     pygame.draw.line(gradient_overlay, (10, 10, 30, alpha), (0, y), (WIDTH, y))
 
 class Button:
@@ -199,8 +200,6 @@ def set_state(new_state):
 def start_encrypt():
     set_state("encrypt_input")
 
-def start_decrypt():
-    print("Decrypt mode coming soon!")
 
 def next_to_explain():
     if user_encrypt_input:
@@ -209,11 +208,15 @@ def next_to_explain():
 def start_quiz():
     set_state("encrypt_game")
 
+def quit_game():
+    pygame.quit()  
+    sys.exit()     
+
 # --- Buttons ---
 button_width, button_height = 260, 70
 menu_buttons = [
-    Button("Encrypt", WIDTH//2 - button_width//2, HEIGHT//2 - 80, button_width, button_height, (44, 125, 160), (255,255,255), start_encrypt),
-    Button("Decrypt", WIDTH//2 - button_width//2, HEIGHT//2 + 20, button_width, button_height, (1, 79, 134), (255,255,255), start_decrypt)
+    Button("Encrypt", WIDTH//2 - button_width//2, HEIGHT//2 + 10, button_width, button_height, (44, 125, 160), (255,255,255), start_encrypt),
+    Button("Quit", WIDTH//2 - button_width//2, HEIGHT//2 + 100, button_width, button_height, (200, 60, 60), (255, 255, 255), quit_game)
 ]
 next_btn = Button("Next", WIDTH//2 - 80, 340, 160, 50, (44, 125, 160), (255,255,255), next_to_explain)
 continue_btn = Button("Continue", WIDTH//2 - 80, 500, 160, 50, (44, 125, 160), (255,255,255), start_quiz)
