@@ -48,6 +48,9 @@ step_explanation_text = []
 answered_correctly = False
 
 game_over_message = ""
+shake_time = 0           # Controls duration of surfer shake
+flash_time = 0           # Controls duration of lives text flash
+shake_intensity = 10     # How strong the shake is (pixels)
 
 encrypt_game_entry_time = 0  # Debounce for answer clicks
 
@@ -446,9 +449,11 @@ while running:
                             else:
                                 lives -= 1
                                 answered_correctly = False
+                                shake_time = 20  # Shake for 20 frames (~0.33 seconds at 60 FPS)
                                 if lives <= 0:
                                     set_state("game_over")
                                     game_over_message = f"Game Over! Final Score: {score}/{len(MCQ_QUESTIONS)}"
+
                             break
                         y_offset += choice_h + spacing
 
@@ -501,10 +506,20 @@ while running:
         angle += 0.05            
         dx = math.sin(angle) * 30
         SURFER_BASE_X = WIDTH//2 - 160 
-        # Rotate the surfer image based on the angle
+
+        # Apply shake effect if active
+        shake_offset_x = 0
+        shake_offset_y = 0
+        if shake_time > 0:
+            shake_offset_x = random.randint(-shake_intensity, shake_intensity)
+            shake_offset_y = random.randint(-shake_intensity, shake_intensity)
+            shake_time -= 1
+
         rotated_surfer = pygame.transform.rotate(surfer_img, math.sin(angle) * 15)
-        # Adjust the position to account for rotation
-        surfer_rect = rotated_surfer.get_rect(center=(SURFER_BASE_X + dx, 300 + surfer_img.get_height()//2))
+        surfer_rect = rotated_surfer.get_rect(center=(
+        SURFER_BASE_X + dx + shake_offset_x,
+        300 + surfer_img.get_height()//2 + shake_offset_y
+))
         screen.blit(rotated_surfer, surfer_rect)
         title = BIG_FONT.render(f"Lives: {lives}  Score: {score}", True, (255, 255, 255))
         screen.blit(title, (30, 30))
@@ -512,7 +527,7 @@ while running:
             q = MCQ_QUESTIONS[current_question]
             y_offset = 100
             # Wrap the question text
-            lines_used = draw_wrapped_text(screen, q["question"], FONT, (255,255,255), 80, y_offset, WIDTH - 160)
+            lines_used = draw_wrapped_text(screen, q["question"], FONT, (255,255,255), 200, y_offset, WIDTH - 160)
             y_offset += lines_used * (FONT.get_height() + 4) + 20
             choice_w = 420
             choice_x = WIDTH - choice_w - 100
