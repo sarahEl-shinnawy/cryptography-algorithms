@@ -19,7 +19,7 @@ try:
     bg_image = pygame.image.load(BG_IMAGE_PATH)
     bg_image = pygame.transform.scale(bg_image, (WIDTH, HEIGHT))
     surfer_img = pygame.image.load(SURFER_IMAGE_PATH)
-    surfer_img = pygame.transform.scale(surfer_img, (100, 100))
+    surfer_img = pygame.transform.scale(surfer_img, (150, 150))
 except pygame.error:
     # Fallback if images don't load
     bg_image = pygame.Surface((WIDTH, HEIGHT))
@@ -384,6 +384,7 @@ def render_code_line(surface, line, font, color, x, y, max_width):
     surface.blit(txt, (x, y))
     return font.get_height() + 4
 
+angle = 0
 # --- Main Loop ---
 running = True
 while running:
@@ -497,7 +498,7 @@ while running:
         continue_btn.draw(screen)
 
     elif state == "encrypt_game":
-        angle += 0.05
+        angle += 0.05            
         dx = math.sin(angle) * 10
         SURFER_BASE_X = WIDTH//2 - 160 
         screen.blit(surfer_img, (SURFER_BASE_X + dx - 50, 340))
