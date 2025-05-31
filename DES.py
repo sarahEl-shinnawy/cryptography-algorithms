@@ -308,7 +308,7 @@ def get_step_explanation(step_idx, user_text):
     return ["DES step complete!"]
 
 def restart_game():
-    global lives, score, current_question, user_encrypt_input, input_active, angle, showing_step, step_to_show, step_explanation_text, answered_correctly, game_over_message
+    global lives, score, current_question, user_encrypt_input, input_active, angle, showing_step, step_to_show, step_explanation_text, answered_correctly, game_over_message, shake_time, flash_time
     lives = 3
     score = 0
     current_question = 0
@@ -320,7 +320,8 @@ def restart_game():
     step_explanation_text = []
     answered_correctly = False
     game_over_message = ""
-    set_state("encrypt_game")  
+    shake_time = 0  # REMOVED shake trigger here
+    flash_time = 0  # REMOVED flash trigger here
     pygame.event.clear()
 
 def quit_game():
@@ -594,4 +595,3 @@ while running:
 
 pygame.quit()
 sys.exit()
-
