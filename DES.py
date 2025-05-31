@@ -213,7 +213,7 @@ menu_buttons = [
     Button("Decrypt", WIDTH//2 - button_width//2, HEIGHT//2 + 20, button_width, button_height, (1, 79, 134), (255,255,255), start_decrypt)
 ]
 next_btn = Button("Next", WIDTH//2 - 80, 340, 160, 50, (44, 125, 160), (255,255,255), next_to_explain)
-continue_btn = Button("Continue", WIDTH//2 - 80, 450, 160, 50, (44, 125, 160), (255,255,255), start_quiz)
+continue_btn = Button("Continue", WIDTH//2 - 80, 500, 160, 50, (44, 125, 160), (255,255,255), start_quiz)
 
 # Add a Back to Menu button for game over
 back_to_menu_btn = Button("Back to Menu", WIDTH//2 - 100, 480, 200, 60, (44, 125, 160), (255,255,255), lambda: set_state("main_menu"))
@@ -317,7 +317,7 @@ def restart_game():
     step_explanation_text = []
     answered_correctly = False
     game_over_message = ""
-    set_state("main_menu")
+    set_state("encrypt_game")  
     pygame.event.clear()
 
 def quit_game():
@@ -499,9 +499,13 @@ while running:
 
     elif state == "encrypt_game":
         angle += 0.05            
-        dx = math.sin(angle) * 10
+        dx = math.sin(angle) * 30
         SURFER_BASE_X = WIDTH//2 - 160 
-        screen.blit(surfer_img, (SURFER_BASE_X + dx - 50, 340))
+        # Rotate the surfer image based on the angle
+        rotated_surfer = pygame.transform.rotate(surfer_img, math.sin(angle) * 15)
+        # Adjust the position to account for rotation
+        surfer_rect = rotated_surfer.get_rect(center=(SURFER_BASE_X + dx, 300 + surfer_img.get_height()//2))
+        screen.blit(rotated_surfer, surfer_rect)
         title = BIG_FONT.render(f"Lives: {lives}  Score: {score}", True, (255, 255, 255))
         screen.blit(title, (30, 30))
         if current_question < len(MCQ_QUESTIONS):
